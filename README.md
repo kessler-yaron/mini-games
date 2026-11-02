@@ -1,6 +1,6 @@
 
 ### Mini Games
 
-* 
-* https://kessler-yaron.github.io/mini-games/shooting_targets/
+* https://kessler-yaron.github.io/mini-games/yoyo/01/
+* https://kessler-yaron.github.io/mini-games/shoots/
 * 
