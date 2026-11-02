@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Target Shooting Challenge - Well done, you were great!</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Canvas Confetti CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Google Fonts for Comic & Hebrew Styling -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Rubik+Comic&family=Varela+Round&display=swap"
+        rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Rubik Comic', 'Varela Round', cursive, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
+        .comic-font {
+            font-family: 'Bangers', 'Rubik Comic', cursive, sans-serif;
+            letter-spacing: 1px;
+        }
+
+        /* Classic Retro Gun Sight / Crosshair Cursor */
+        .custom-crosshair,
+        .custom-crosshair * {
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="18" fill="none" stroke="%23ff2222" stroke-width="3"/><circle cx="24" cy="24" r="10" fill="none" stroke="%23000000" stroke-width="2"/><circle cx="24" cy="24" r="3" fill="%23ff0000"/><line x1="24" y1="2" x2="24" y2="12" stroke="%23ff0000" stroke-width="3"/><line x1="24" y1="36" x2="24" y2="46" stroke="%23ff0000" stroke-width="3"/><line x1="2" y1="24" x2="12" y2="24" stroke="%23ff0000" stroke-width="3"/><line x1="36" y1="24" x2="46" y2="24" stroke="%23ff0000" stroke-width="3"/></svg>') 24 24, crosshair !important;
+        }
+
+        /* Comic Book Borders & Shadows */
+        .comic-box {
+            border: 4px solid #000;
+            box-shadow: 6px 6px 0px #000;
+        }
+
+        .comic-button {
+            border: 3px solid #000;
+            box-shadow: 4px 4px 0px #000;
+            transition: all 0.1s ease;
+        }
+
+        .comic-button:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0px #000;
+        }
+
+        .comic-button:active {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px #000;
+        }
+
+        /* Halftone Dot Pattern Background */
+        .comic-bg {
+            background-color: #2b1055;
+            background-image: radial-gradient(#5a2d82 15%, transparent 16%), radial-gradient(#3a1a63 15%, transparent 16%);
+            background-size: 30px 30px;
+            background-position: 0 0, 15px 15px;
+        }
+
+        .range-bg {
+            background: linear-gradient(to bottom, #87ceeb 0%, #e0f6ff 60%, #5c940d 60%, #375a07 100%);
+            position: relative;
+        }
+
+        /* Target Styling & Animations */
+        .target-item {
+            position: absolute;
+            cursor: pointer;
+            transition: transform 0.15s ease-out;
+            will-change: transform, left, top;
+        }
+
+        .target-item:active {
+            transform: scale(0.9);
+        }
+
+        /* Gunshot Flash Effect */
+        #flash-overlay {
+            pointer-events: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.4);
+            opacity: 0;
+            transition: opacity 0.05s ease-out;
+            z-index: 50;
+        }
+
+        /* Fireworks Canvas Overlay */
+        #fireworks-canvas {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 45;
+        }
+
+        /* Bang Pop-up text */
+        .bang-text {
+            position: absolute;
+            pointer-events: none;
+            font-family: 'Bangers', cursive;
+            color: #ffde00;
+            -webkit-text-stroke: 2px #000;
+            font-size: 2rem;
+            animation: bangPop 0.5s ease-out forwards;
+            z-index: 40;
+        }
+
+        @keyframes bangPop {
+            0% {
+                opacity: 1;
+                transform: scale(0.5) rotate(-10deg);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.4) rotate(10deg);
+            }
+
+            100% {
+                opacity: 0;
+                transform: scale(1) translateY(-30px);
+            }
+        }
+
+        /* Floating Animation for Balloons */
+        @keyframes floatSlow {
+
+            0%,
+            100% {
+                transform: translateY(0px) rotate(-3deg);
+            }
+
+            50% {
+                transform: translateY(-12px) rotate(3deg);
+            }
+        }
+
+        .floating {
+            animation: floatSlow 3s ease-in-out infinite;
+        }
+
+        /* Poster Bullet Holes Effect */
+        .bullet-hole {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: radial-gradient(circle, #1a1a1a 40%, #434343 60%, transparent 70%);
+            border-radius: 50%;
+            border: 2px dashed #000;
+            z-index: 25;
+            box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.8);
+        }
+    </style>
+</head>
+
+<body class="w-screen h-screen custom-crosshair comic-bg text-gray-900 select-none overflow-hidden dir-ltr">
+
+    <!-- Flash Effect for Shots -->
+    <div id="flash-overlay"></div>
+
+    <!-- Fireworks Canvas for End Screen -->
+    <canvas id="fireworks-canvas"></canvas>
+
+    <!-- MAIN GAME CONTAINER -->
+    <div id="game-container" class="relative w-full h-full flex flex-col justify-between overflow-hidden">
+
+        <!-- HEADER HUD -->
+        <header class="relative z-30 p-4 flex justify-between items-center max-w-4xl mx-auto w-full">
+            <!-- Score Card -->
+            <div class="comic-box bg-yellow-400 px-5 py-2 rounded-xl text-center transform -rotate-2">
+                <span class="block text-xs font-bold text-gray-800">SCORE</span>
+                <span id="score-display" class="comic-font text-3xl md:text-4xl text-black">0</span>
+            </div>
+
+            <!-- Title & Sound Toggle -->
+            <div class="flex flex-col items-center">
+                <h1
+                    class="comic-font text-2xl md:text-4xl text-yellow-300 drop-shadow-[0_4px_0_rgba(0,0,0,1)] tracking-wider">
+                    TARGET SHOOTING 🎯
+                </h1>
+                <button id="sound-btn"
+                    class="comic-button bg-purple-600 text-white text-xs px-3 py-1 rounded-lg mt-1 flex items-center gap-1">
+                    <span id="sound-icon">🔊</span> Sound: ON
+                </button>
+            </div>
+
+            <!-- Timer Card -->
+            <div class="comic-box bg-red-500 text-white px-5 py-2 rounded-xl text-center transform rotate-2">
+                <span class="block text-xs font-bold">TIME LEFT</span>
+                <span id="timer-display" class="comic-font text-3xl md:text-4xl">30</span>
+            </div>
+        </header>
+
+        <!-- PLAYFIELD / TARGET RANGE -->
+        <main id="playfield"
+            class="relative flex-1 w-full max-w-5xl mx-auto rounded-2xl comic-box range-bg overflow-hidden my-2">
+            <!-- Range Decorations / Scenery -->
+            <div class="absolute top-4 left-6 opacity-80 text-4xl">☁️</div>
+            <div class="absolute top-10 right-12 opacity-80 text-5xl">☁️</div>
+            <div class="absolute bottom-12 left-1/4 text-6xl opacity-30">🌳</div>
+            <div class="absolute bottom-12 right-1/4 text-6xl opacity-30">🌳</div>
+            <div class="absolute bottom-0 w-full h-12 bg-green-700 border-t-4 border-black"></div>
+
+            <!-- Dynamic Targets Container -->
+            <div id="targets-layer" class="absolute inset-0 z-20"></div>
+
+            <!-- START SCREEN OVERLAY -->
+            <div id="start-overlay"
+                class="absolute inset-0 z-40 bg-black/70 backdrop-blur-sm flex flex-col justify-center items-center p-6 text-center">
+                <div class="comic-box bg-white p-8 rounded-2xl max-w-md w-full transform rotate-1">
+                    <h2 class="comic-font text-4xl text-purple-600 mb-2">Ready to Shoot? 🎈</h2>
+                    <p class="text-gray-700 font-bold mb-4">Hit as many targets and balloons as you can in 30 seconds!
+                    </p>
+                    <button id="start-btn"
+                        class="comic-button bg-yellow-400 hover:bg-yellow-300 text-black font-extrabold text-2xl py-3 px-8 rounded-xl w-full comic-font">
+                        START GAME! 🚀
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <!-- FOOTER INFO / CONTROLS -->
+        <footer class="p-2 text-center text-xs text-purple-200 opacity-80 z-30">
+            Click / Tap screen to shoot • Hit targets to rack up points!
+        </footer>
+    </div>
+
+    <!-- END GAME POSTER MODAL -->
+    <div id="poster-modal"
+        class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex justify-center items-center p-4 hidden overflow-y-auto">
+        <div class="relative max-w-xl w-full my-auto">
+
+            <!-- CELEBRATION POSTER CONTAINER -->
+            <div id="birthday-poster"
+                class="relative comic-box bg-amber-50 p-6 md:p-8 rounded-3xl text-center overflow-hidden border-8 border-yellow-400 shadow-2xl">
+
+                <!-- Poster Decorative Texture -->
+                <div class="absolute inset-0 bg-yellow-100 opacity-50 pointer-events-none"
+                    style="background-image: radial-gradient(#d97706 1px, transparent 1px); background-size: 16px 16px;">
+                </div>
+
+                <!-- Top Ribbon -->
+                <div
+                    class="relative z-20 bg-red-600 text-white comic-font text-xl md:text-2xl py-1 px-6 rounded-full inline-block border-2 border-black shadow-md mb-3 transform -rotate-1">
+                    🎯 CHAMPION MARKSMAN 🎯
+                </div>
+
+                <!-- MAIN HEADING -->
+                <div class="relative z-20 my-2">
+                    <h1
+                        class="comic-font text-3xl md:text-5xl text-blue-600 drop-shadow-[0_4px_0_rgba(0,0,0,1)] leading-tight">
+                        Well done,
+                    </h1>
+                    <h2
+                        class="comic-font text-3xl md:text-5xl text-yellow-500 drop-shadow-[0_4px_0_rgba(0,0,0,1)] mt-1">
+                        you were great! 🥳
+                    </h2>
+                </div>
+
+                <!-- TARGET & BULLET HOLES DISPLAY -->
+                <div class="relative z-20 my-4 flex justify-center items-center">
+                    <div
+                        class="relative w-48 h-48 md:w-56 md:h-56 rounded-full bg-white border-8 border-black flex items-center justify-center shadow-lg">
+                        <!-- Bullseye Circles -->
+                        <div
+                            class="w-40 h-40 md:w-44 md:h-44 rounded-full border-4 border-black bg-sky-200 flex items-center justify-center">
+                            <div
+                                class="w-32 h-32 md:w-36 md:h-36 rounded-full border-4 border-black bg-white flex items-center justify-center">
+                                <div
+                                    class="w-24 h-24 md:w-28 md:h-28 rounded-full border-4 border-black bg-red-500 flex items-center justify-center">
+                                    <div
+                                        class="w-14 h-14 md:w-16 md:h-16 rounded-full border-4 border-black bg-yellow-400 flex items-center justify-center">
+                                        <div class="w-6 h-6 rounded-full bg-black"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bullet Hole Overlay -->
+                        <div class="bullet-hole top-8 left-10"></div>
+                        <div class="bullet-hole top-12 right-12"></div>
+                        <div class="bullet-hole bottom-10 left-14"></div>
+                        <div class="bullet-hole bottom-8 right-10"></div>
+
+                        <!-- Banner across Target -->
+                        <div
+                            class="absolute bg-white/95 border-4 border-black px-4 py-1 rounded-xl shadow-md transform rotate-6">
+                            <span class="comic-font text-2xl text-black font-extrabold">BULLSEYE! ⭐</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CAKE & BALLOONS ILLUSTRATION -->
+                <div class="relative z-20 flex justify-around items-end mt-2">
+                    <!-- Left Balloons -->
+                    <div class="text-4xl md:text-5xl floating">🎈🎈</div>
+
+                    <!-- Cake -->
+                    <div class="relative flex flex-col items-center">
+                        <div class="text-5xl md:text-6xl drop-shadow-md">🎂</div>
+                        <div
+                            class="bg-purple-800 text-yellow-300 text-xs font-bold px-3 py-1 rounded-full border border-black mt-1">
+                            SHARPSHOOTER! 🏆
+                        </div>
+                    </div>
+
+                    <!-- Right Balloons -->
+                    <div class="text-4xl md:text-5xl floating" style="animation-delay: 1.5s;">🎈🎈</div>
+                </div>
+
+                <!-- FINAL SCORE SUMMARY -->
+                <div class="relative z-20 mt-4 bg-white/90 border-2 border-black rounded-xl p-3 inline-block">
+                    <span class="text-gray-800 font-bold text-sm">FINAL SCORE: </span>
+                    <span id="final-score" class="comic-font text-2xl text-red-600">0</span>
+                    <span class="text-gray-800 font-bold text-sm"> PTS!</span>
+                </div>
+
+            </div>
+
+            <!-- ACTION BUTTONS -->
+            <div class="mt-4 flex gap-3 justify-center">
+                <button id="replay-btn"
+                    class="comic-button bg-green-500 hover:bg-green-400 text-white font-extrabold text-xl py-3 px-6 rounded-xl comic-font flex-1">
+                    PLAY AGAIN! 🔄
+                </button>
+                <button id="celebrate-more-btn"
+                    class="comic-button bg-yellow-400 hover:bg-yellow-300 text-black font-extrabold text-xl py-3 px-6 rounded-xl comic-font flex-1">
+                    LAUNCH FIREWORKS! 🎉
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT GAME LOGIC -->
+    <script>
+        // Game State & Variables
+        let score = 0;
+        let timeLeft = 30;
+        let gameActive = false;
+        let gameTimer = null;
+        let targetSpawnTimer = null;
+        let soundEnabled = true;
+
+        // Fireworks Animation System
+        const fireworksCanvas = document.getElementById('fireworks-canvas');
+        const fwCtx = fireworksCanvas.getContext('2d');
+        let fireworksParticles = [];
+        let fireworksRockets = [];
+        let fireworksAnimationId = null;
+
+        function resizeFireworksCanvas() {
+            fireworksCanvas.width = window.innerWidth;
+            fireworksCanvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeFireworksCanvas);
+        resizeFireworksCanvas();
+
+        class Rocket {
+            constructor() {
+                this.x = Math.random() * fireworksCanvas.width;
+                this.y = fireworksCanvas.height;
+                this.targetY = Math.random() * (fireworksCanvas.height * 0.5) + 50;
+                this.speed = Math.random() * 4 + 7;
+                this.color = `hsl(${Math.floor(Math.random() * 360)}, 100%, 60%)`;
+            }
+            update() {
+                this.y -= this.speed;
+                if (this.y <= this.targetY) {
+                    explodeFirework(this.x, this.y, this.color);
+                    return false;
+                }
+                return true;
+            }
+            draw() {
+                fwCtx.beginPath();
+                fwCtx.arc(this.x, this.y, 3, 0, Math.PI * 2);
+                fwCtx.fillStyle = this.color;
+                fwCtx.fill();
+            }
+        }
+
+        class FireworkParticle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 6 + 2;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.color = color;
+                this.alpha = 1;
+                this.decay = Math.random() * 0.02 + 0.015;
+                this.gravity = 0.1;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += this.gravity;
+                this.alpha -= this.decay;
+                return this.alpha > 0;
+            }
+            draw() {
+                fwCtx.save();
+                fwCtx.globalAlpha = this.alpha;
+                fwCtx.beginPath();
+                fwCtx.arc(this.x, this.y, 2.5, 0, Math.PI * 2);
+                fwCtx.fillStyle = this.color;
+                fwCtx.fill();
+                fwCtx.restore();
+            }
+        }
+
+        function explodeFirework(x, y, color) {
+            playPopSound();
+            for (let i = 0; i < 40; i++) {
+                fireworksParticles.push(new FireworkParticle(x, y, color));
+            }
+        }
+
+        function animateFireworks() {
+            fwCtx.clearRect(0, 0, fireworksCanvas.width, fireworksCanvas.height);
+
+            if (Math.random() < 0.08) {
+                fireworksRockets.push(new Rocket());
+            }
+
+            fireworksRockets = fireworksRockets.filter(r => {
+                r.draw();
+                return r.update();
+            });
+
+            fireworksParticles = fireworksParticles.filter(p => {
+                p.draw();
+                return p.update();
+            });
+
+            if (posterModal && !posterModal.classList.contains('hidden')) {
+                fireworksAnimationId = requestAnimationFrame(animateFireworks);
+            }
+        }
+
+        function startFireworks() {
+            fireworksRockets = [];
+            fireworksParticles = [];
+            if (fireworksAnimationId) cancelAnimationFrame(fireworksAnimationId);
+            animateFireworks();
+        }
+
+        function stopFireworks() {
+            if (fireworksAnimationId) cancelAnimationFrame(fireworksAnimationId);
+            fwCtx.clearRect(0, 0, fireworksCanvas.width, fireworksCanvas.height);
+        }
+
+        // Elements
+        const playfield = document.getElementById('playfield');
+        const targetsLayer = document.getElementById('targets-layer');
+        const scoreDisplay = document.getElementById('score-display');
+        const timerDisplay = document.getElementById('timer-display');
+        const startOverlay = document.getElementById('start-overlay');
+        const startBtn = document.getElementById('start-btn');
+        const posterModal = document.getElementById('poster-modal');
+        const finalScoreDisplay = document.getElementById('final-score');
+        const replayBtn = document.getElementById('replay-btn');
+        const celebrateBtn = document.getElementById('celebrate-more-btn');
+        const soundBtn = document.getElementById('sound-btn');
+        const soundIcon = document.getElementById('sound-icon');
+        const flashOverlay = document.getElementById('flash-overlay');
+
+        // Web Audio API Synthesizer (No external audio files needed)
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioContext();
+            }
+        }
+
+        function playGunshotSound() {
+            if (!soundEnabled || !audioCtx) return;
+            try {
+                const now = audioCtx.currentTime;
+                // Noise buffer for gunshot blast
+                const bufferSize = audioCtx.sampleRate * 0.15;
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+
+                const noise = audioCtx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(1000, now);
+                filter.frequency.exponentialRampToValueAtTime(100, now + 0.15);
+
+                const gain = audioCtx.createGain();
+                gain.gain.setValueAtTime(0.8, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                noise.start(now);
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function playPopSound() {
+            if (!soundEnabled || !audioCtx) return;
+            try {
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(800, now + 0.08);
+
+                gain.gain.setValueAtTime(0.5, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.08);
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function playCheerSound() {
+            if (!soundEnabled || !audioCtx) return;
+            try {
+                const now = audioCtx.currentTime;
+                // Arpeggio fanfare
+                const notes = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99];
+                notes.forEach((freq, idx) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+
+                    gain.gain.setValueAtTime(0.3, now + idx * 0.08);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.08 + 0.3);
+
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+
+                    osc.start(now + idx * 0.08);
+                    osc.stop(now + idx * 0.08 + 0.3);
+                });
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        // Toggle Audio
+        soundBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            soundEnabled = !soundEnabled;
+            soundIcon.textContent = soundEnabled ? '🔊' : '🔇';
+            soundBtn.childNodes[1].textContent = soundEnabled ? ' Sound: ON' : ' Sound: OFF';
+        });
+
+        // Target Types Definition
+        const TARGET_TYPES = [
+            { type: 'bullseye', points: 10, size: 70, svg: `<svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-md"><circle cx="50" cy="50" r="46" fill="#fff" stroke="#000" stroke-width="6"/><circle cx="50" cy="50" r="34" fill="#ef4444" stroke="#000" stroke-width="5"/><circle cx="50" cy="50" r="22" fill="#fff" stroke="#000" stroke-width="4"/><circle cx="50" cy="50" r="10" fill="#facc15" stroke="#000" stroke-width="3"/></svg>` },
+            { type: 'balloon-red', points: 5, size: 65, svg: `<svg viewBox="0 0 100 120" class="w-full h-full drop-shadow-md"><path d="M50 10 C25 10 10 35 10 60 C10 85 35 100 50 100 C65 100 90 85 90 60 C90 35 75 10 50 10 Z" fill="#ef4444" stroke="#000" stroke-width="5"/><polygon points="45,100 55,100 50,108" fill="#ef4444" stroke="#000" stroke-width="2"/><path d="M50 108 Q45 115 50 120" stroke="#000" stroke-width="3" fill="none"/></svg>` },
+            { type: 'balloon-yellow', points: 5, size: 65, svg: `<svg viewBox="0 0 100 120" class="w-full h-full drop-shadow-md"><path d="M50 10 C25 10 10 35 10 60 C10 85 35 100 50 100 C65 100 90 85 90 60 C90 35 75 10 50 10 Z" fill="#facc15" stroke="#000" stroke-width="5"/><polygon points="45,100 55,100 50,108" fill="#facc15" stroke="#000" stroke-width="2"/><path d="M50 108 Q55 115 50 120" stroke="#000" stroke-width="3" fill="none"/></svg>` },
+            { type: 'balloon-blue', points: 5, size: 65, svg: `<svg viewBox="0 0 100 120" class="w-full h-full drop-shadow-md"><path d="M50 10 C25 10 10 35 10 60 C10 85 35 100 50 100 C65 100 90 85 90 60 C90 35 75 10 50 10 Z" fill="#3b82f6" stroke="#000" stroke-width="5"/><polygon points="45,100 55,100 50,108" fill="#3b82f6" stroke="#000" stroke-width="2"/><path d="M50 108 Q45 115 50 120" stroke="#000" stroke-width="3" fill="none"/></svg>` },
+            { type: 'star-bonus', points: 25, size: 55, svg: `<svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-md"><polygon points="50,5 64,36 98,36 70,57 81,91 50,70 19,91 30,57 2,36 36,36" fill="#a855f7" stroke="#000" stroke-width="5"/></svg>` }
+        ];
+
+        // Global Playfield Gunshots Trigger
+        playfield.addEventListener('pointerdown', (e) => {
+            if (!gameActive) return;
+
+            // Visual Flash
+            flashOverlay.style.opacity = '1';
+            setTimeout(() => { flashOverlay.style.opacity = '0'; }, 50);
+
+            // Audio Effect
+            playGunshotSound();
+        });
+
+        // Spawn Single Target
+        function spawnTarget() {
+            if (!gameActive) return;
+
+            const targetData = TARGET_TYPES[Math.floor(Math.random() * TARGET_TYPES.length)];
+            const targetEl = document.createElement('div');
+            targetEl.className = 'target-item flex items-center justify-center';
+            targetEl.style.width = `${targetData.size}px`;
+            targetEl.style.height = `${targetData.size}px`;
+            targetEl.innerHTML = targetData.svg;
+
+            // Coordinates inside range bounds
+            const bounds = playfield.getBoundingClientRect();
+            const padding = 20;
+            const maxX = bounds.width - targetData.size - padding;
+            const maxY = bounds.height - targetData.size - padding - 40; // Avoid grass floor
+
+            const startX = Math.max(padding, Math.random() * maxX);
+            const startY = Math.max(padding, Math.random() * maxY);
+
+            targetEl.style.left = `${startX}px`;
+            targetEl.style.top = `${startY}px`;
+
+            // Movement behavior
+            let duration = Math.random() * 2000 + 1500; // 1.5 - 3.5s lifespan
+            let moveX = (Math.random() - 0.5) * 100;
+            let moveY = -Math.random() * 80; // Lift up slightly
+
+            targetEl.animate([
+                { transform: 'translate(0, 0) scale(0.2)', opacity: 0 },
+                { transform: 'translate(0, 0) scale(1)', opacity: 1, offset: 0.1 },
+                { transform: `translate(${moveX}px, ${moveY}px) scale(1)`, opacity: 1, offset: 0.85 },
+                { transform: `translate(${moveX}px, ${moveY - 20}px) scale(0.2)`, opacity: 0 }
+            ], {
+                duration: duration,
+                easing: 'ease-out'
+            });
+
+            // Target Shot Handler
+            targetEl.addEventListener('pointerdown', (e) => {
+                e.stopPropagation(); // prevent double triggering playfield
+                if (!gameActive) return;
+
+                // Score Logic
+                score += targetData.points;
+                scoreDisplay.textContent = score;
+
+                // Pop Sound & Effects
+                playPopSound();
+                createBangPopText(e.clientX, e.clientY, `+${targetData.points}`);
+                createParticleExplosion(e.clientX, e.clientY);
+
+                // Remove Target immediately
+                targetEl.remove();
+            });
+
+            targetsLayer.appendChild(targetEl);
+
+            // Auto-remove after animation completes
+            setTimeout(() => {
+                if (targetEl.parentNode) {
+                    targetEl.remove();
+                }
+            }, duration);
+        }
+
+        // Particle Explosions on Hit
+        function createParticleExplosion(x, y) {
+            const colors = ['#facc15', '#ef4444', '#3b82f6', '#a855f7', '#ffffff'];
+            for (let i = 0; i < 8; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'fixed pointer-events-none rounded-full border border-black z-40';
+                const size = Math.random() * 10 + 6;
+                particle.style.width = `${size}px`;
+                particle.style.height = `${size}px`;
+                particle.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                particle.style.left = `${x}px`;
+                particle.style.top = `${y}px`;
+
+                document.body.appendChild(particle);
+
+                const angle = Math.random() * Math.PI * 2;
+                const dist = Math.random() * 40 + 20;
+                const destX = Math.cos(angle) * dist;
+                const destY = Math.sin(angle) * dist;
+
+                particle.animate([
+                    { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+                    { transform: `translate(${destX}px, ${destY}px) scale(0)`, opacity: 0 }
+                ], {
+                    duration: 400,
+                    easing: 'cubic-bezier(0, .9, .57, 1)'
+                }).onfinish = () => particle.remove();
+            }
+        }
+
+        // Popup Score Text
+        function createBangPopText(x, y, text) {
+            const bang = document.createElement('div');
+            bang.className = 'bang-text';
+            bang.textContent = text;
+            bang.style.left = `${x - 20}px`;
+            bang.style.top = `${y - 30}px`;
+            document.body.appendChild(bang);
+            setTimeout(() => bang.remove(), 500);
+        }
+
+        // Start Game
+        function startGame() {
+            initAudio();
+            stopFireworks();
+            score = 0;
+            timeLeft = 30;
+            gameActive = true;
+
+            scoreDisplay.textContent = score;
+            timerDisplay.textContent = timeLeft;
+            targetsLayer.innerHTML = '';
+
+            startOverlay.classList.add('hidden');
+            posterModal.classList.add('hidden');
+
+            // Countdown Loop
+            gameTimer = setInterval(() => {
+                timeLeft--;
+                timerDisplay.textContent = timeLeft;
+
+                if (timeLeft <= 0) {
+                    endGame();
+                }
+            }, 1000);
+
+            // Spawning Loop
+            targetSpawnTimer = setInterval(() => {
+                if (gameActive) {
+                    spawnTarget();
+                    if (Math.random() > 0.4) spawnTarget();
+                }
+            }, 600);
+        }
+
+        // End Game & Show Poster
+        function endGame() {
+            gameActive = false;
+            clearInterval(gameTimer);
+            clearInterval(targetSpawnTimer);
+            targetsLayer.innerHTML = '';
+
+            finalScoreDisplay.textContent = score;
+            posterModal.classList.remove('hidden');
+
+            playCheerSound();
+            triggerConfetti();
+            startFireworks();
+        }
+
+        // Confetti Celebration Effect
+        function triggerConfetti() {
+            if (typeof confetti === 'function') {
+                confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+                setTimeout(() => {
+                    confetti({
+                        particleCount: 50,
+                        angle: 60,
+                        spread: 55,
+                        origin: { x: 0 }
+                    });
+                    confetti({
+                        particleCount: 50,
+                        angle: 120,
+                        spread: 55,
+                        origin: { x: 1 }
+                    });
+                }, 300);
+            }
+        }
+
+        // Event Listeners
+        startBtn.addEventListener('click', startGame);
+        replayBtn.addEventListener('click', startGame);
+        celebrateBtn.addEventListener('click', () => {
+            playCheerSound();
+            triggerConfetti();
+            for (let i = 0; i < 4; i++) {
+                setTimeout(() => {
+                    explodeFirework(
+                        Math.random() * window.innerWidth,
+                        Math.random() * (window.innerHeight * 0.5) + 50,
+                        `hsl(${Math.floor(Math.random() * 360)}, 100%, 60%)`
+                    );
+                }, i * 150);
+            }
+        });
+    </script>
+</body>
+
+</html>
